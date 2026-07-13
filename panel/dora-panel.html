@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DORA metrics: Atlas Systems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  /* Standalone page chrome. The .dora-panel section below is the part to
+     copy into the Lab page; it reads the site's CSS variables and falls
+     back to the same values when standalone. */
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #0a0a0f;
+    color: #e8e8e0;
+    font-family: "IBM Plex Mono", monospace;
+    display: grid;
+    place-items: center;
+    padding: 2rem 1rem;
+    box-sizing: border-box;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     COPY REGION: everything inside this <section> drops into the
+     Lab page as-is. Styles are scoped under .dora-panel and colours
+     read the site variables first, so it inherits the live theme.
+     Reminder for the Lab page CSP (_headers in atlas-systems):
+     connect-src must allow the atlas-dora origin or this panel will
+     work in curl and die in the browser.
+     ============================================================ -->
+<section class="dora-panel" aria-label="DORA metrics">
+<style>
+  .dora-panel {
+    --dp-bg: var(--bg-nested, #1a1a24);
+    --dp-bg-deep: var(--bg-alt, #111118);
+    --dp-text: var(--text, #e8e8e0);
+    --dp-dim: var(--text-dim, #aaa9a0);
+    --dp-faint: var(--text-faint, #555560);
+    --dp-accent: var(--accent, #f5a623);
+    --dp-good: var(--status-green, #4ade80);
+    --dp-bad: var(--status-red, #e24b4a);
+    width: min(720px, 100%);
+    box-sizing: border-box;
+    margin: 0 auto;
+    background: var(--dp-bg-deep);
+    border: 1px solid var(--dp-faint);
+    padding: 1.25rem 1.5rem 1rem;
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--dp-text);
+  }
+  .dora-panel h2 {
+    font-family: "DM Serif Display", serif;
+    font-weight: 400;
+    font-size: 1.4rem;
+    margin: 0 0 0.25rem;
+    color: var(--dp-accent);
+  }
+  .dora-panel .dp-sub {
+    color: var(--dp-faint);
+    font-size: 0.72rem;
+    margin: 0 0 1rem;
+  }
+  .dora-panel .dp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+  .dora-panel .dp-card {
+    background: var(--dp-bg);
+    border: 1px solid var(--dp-faint);
+    padding: 0.85rem 1rem;
+  }
+  .dora-panel .dp-label {
+    color: var(--dp-dim);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .dora-panel .dp-value {
+    font-size: 1.7rem;
+    font-weight: 500;
+    margin: 0.3rem 0 0.15rem;
+    color: var(--dp-text);
+  }
+  .dora-panel .dp-trend { font-size: 0.75rem; }
+  .dora-panel .dp-trend.good { color: var(--dp-good); }
+  .dora-panel .dp-trend.bad { color: var(--dp-bad); }
+  .dora-panel .dp-trend.flat { color: var(--dp-faint); }
+  .dora-panel .dp-basis {
+    color: var(--dp-faint);
+    font-size: 0.68rem;
+    margin-top: 0.35rem;
+    line-height: 1.5;
+  }
+  .dora-panel .dp-degraded {
+    display: none;
+    color: var(--dp-accent);
+    font-size: 0.72rem;
+    margin-top: 0.85rem;
+    line-height: 1.5;
+  }
+  .dora-panel .dp-error {
+    display: none;
+    color: var(--dp-bad);
+    background: var(--dp-bg);
+    border: 1px solid var(--dp-bad);
+    padding: 0.75rem 1rem;
+    font-size: 0.78rem;
+    margin-top: 0.85rem;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .dora-panel footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--dp-faint);
+    color: var(--dp-faint);
+    font-size: 0.68rem;
+  }
+</style>
+
+  <h2>DORA metrics</h2>
+  <p class="dp-sub">computed live from the estate's own event stream · <a id="dp-raw-json" href="https://api.atlas-systems.uk/dora/metrics" style="color:inherit">raw JSON</a></p>
+
+  <div class="dp-grid">
+    <div class="dp-card">
+      <div class="dp-label">Deploys / week</div>
+      <div class="dp-value" id="dp-freq">·</div>
+      <div class="dp-trend flat" id="dp-freq-trend"></div>
+      <div class="dp-basis" id="dp-freq-basis"></div>
+    </div>
+    <div class="dp-card">
+      <div class="dp-label">Change failure rate</div>
+      <div class="dp-value" id="dp-cfr">·</div>
+      <div class="dp-trend flat" id="dp-cfr-trend"></div>
+      <div class="dp-basis" id="dp-cfr-basis"></div>
+    </div>
+    <div class="dp-card">
+      <div class="dp-label">Mean time to recovery</div>
+      <div class="dp-value" id="dp-mttr">·</div>
+      <div class="dp-trend flat" id="dp-mttr-trend"></div>
+      <div class="dp-basis" id="dp-mttr-basis"></div>
+    </div>
+  </div>
+
+  <p class="dp-degraded" id="dp-degraded"></p>
+  <p class="dp-error" id="dp-error"></p>
+
+  <footer>
+    <span id="dp-window"></span>
+    <span id="dp-meta"></span>
+  </footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var PUBLIC_ENDPOINT = 'https://api.atlas-systems.uk/dora/metrics';
+  var LOCAL_ENDPOINT = 'http://localhost:8787/dora/metrics';
+  var ENDPOINT = isLocalPage() ? LOCAL_ENDPOINT : PUBLIC_ENDPOINT;
+  var REFRESH_MS = 5 * 60 * 1000; // matches the Worker's cache TTL
+
+  function el(id) { return document.getElementById(id); }
+  function text(id, value) { el(id).textContent = value; }
+  function isLocalPage() {
+    return location.protocol === 'file:'
+      || location.hostname === 'localhost'
+      || location.hostname === '127.0.0.1'
+      || location.hostname === '';
+  }
+
+  // upGood: for deploy frequency, up is good; for CFR and MTTR, up is bad.
+  function paintTrend(id, trend, upGood) {
+    var node = el(id);
+    if (!trend || trend.delta === null || trend.dir === 'flat') {
+      node.className = 'dp-trend flat';
+      node.textContent = trend && trend.delta === null ? 'no previous sample' : 'steady';
+      return;
+    }
+    var arrow = trend.dir === 'up' ? '\u25b2' : '\u25bc';
+    var good = trend.dir === 'up' ? upGood : !upGood;
+    node.className = 'dp-trend ' + (good ? 'good' : 'bad');
+    node.textContent = arrow + ' ' + Math.abs(trend.delta) + ' since last sample';
+  }
+
+  function fmt(value, suffix, digits) {
+    if (value === null || value === undefined) return 'n/a';
+    return (digits === undefined ? value : Number(value).toFixed(digits)) + (suffix || '');
+  }
+
+  function render(body, cacheState) {
+    el('dp-error').style.display = 'none';
+
+    var freq = body.deploymentFrequency || {};
+    text('dp-freq', fmt(freq.perWeek, ''));
+    text('dp-freq-basis', (freq.totalInWindow || 0) + ' deploys in window');
+    paintTrend('dp-freq-trend', body.trend && body.trend.deploymentFrequencyPerWeek, true);
+
+    var cfr = body.changeFailureRate || {};
+    text('dp-cfr', cfr.rate === null || cfr.rate === undefined ? 'n/a' : Math.round(cfr.rate * 100) + '%');
+    text('dp-cfr-basis',
+      cfr.rate === null || cfr.rate === undefined
+        ? (cfr.note || 'not computable')
+        : cfr.failedDeploys + ' of ' + cfr.totalDeploys + ' deploys, ' + cfr.correlationWindowMinutes + ' min correlation window');
+    paintTrend('dp-cfr-trend', body.trend && body.trend.changeFailureRate, false);
+
+    var mttr = body.mttr || {};
+    text('dp-mttr', fmt(mttr.meanMinutes, ' min'));
+    text('dp-mttr-basis',
+      mttr.measuredIncidents + ' of ' + mttr.totalRealIncidents + ' incidents measured'
+      + (body.drillIncidentsExcluded ? ', ' + body.drillIncidentsExcluded + ' drill(s) excluded' : ''));
+    paintTrend('dp-mttr-trend', body.trend && body.trend.mttrMinutes, false);
+
+    var degraded = el('dp-degraded');
+    if (body.degraded && body.degraded.length) {
+      degraded.style.display = 'block';
+      degraded.textContent = 'Partial data. Unreachable: ' + body.degraded.map(function (d) { return d.upstream; }).join(', ')
+        + '. Numbers above cover what answered.';
+    } else {
+      degraded.style.display = 'none';
+    }
+
+    text('dp-window', body.window
+      ? 'window: ' + body.window.days + ' days (' + body.window.basis + ')'
+      : 'window: no timestamped events');
+    text('dp-meta', 'computed ' + (body.computedAt || '?') + ' · cache ' + cacheState);
+  }
+
+  function showError(message) {
+    var node = el('dp-error');
+    node.style.display = 'block';
+    node.textContent = 'Could not load metrics: ' + message + ' Retrying in 5 minutes, or reload now.';
+    text('dp-meta', 'last attempt failed');
+  }
+
+  function load() {
+    var raw = el('dp-raw-json');
+    if (raw) raw.href = ENDPOINT;
+    fetch(ENDPOINT, { headers: { accept: 'application/json' } })
+      .then(function (response) {
+        var cacheState = response.headers.get('x-dora-cache') || 'unknown';
+        return response.json().then(function (body) {
+          if (!response.ok || body.ok === false) {
+            throw new Error(body.error || ('HTTP ' + response.status));
+          }
+          render(body, cacheState);
+        });
+      })
+      .catch(function (error) { showError(error.message); });
+  }
+
+  load();
+  setInterval(load, REFRESH_MS);
+})();
+</script>
+</section>
+<!-- ======================= END COPY REGION ======================= -->
+
+</body>
+</html>

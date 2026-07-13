@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "atlas-dora",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-13",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
+  },
+
+  // Metrics cache (metrics:v1, 5 min TTL) and durable previous snapshot
+  // (metrics:last, no TTL). Create it, then paste the id printed by:
+  //   npx wrangler kv namespace create DORA_CACHE
+  "kv_namespaces": [
+    {
+      "binding": "DORA_CACHE",
+      "id": "a0c92692d5c142b38b3196c13f346d21"
+    }
+  ],
+
+  // Route under the estate API hostname. zone_id, never zone_name: the
+  // scoped deploy token cannot resolve names.
+  "routes": [
+    {
+      "pattern": "api.atlas-systems.uk/dora/*",
+      "zone_id": "8ba6350a78c988447c111048b125f917"
+    }
+  ]
+}

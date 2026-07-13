@@ -1,0 +1,41 @@
+# atlas-dora CI: lint, test, dry-run. Inline for now so the repo works the
+# moment it is pushed; once it has proven itself, swap this file for the
+# 12-line caller of atlas-infra's reusable deploy-worker.yml like the other
+# five Workers, and this gate moves into the shared pipeline.
+#
+# npm ci needs package-lock.json committed. Run `npm install` once locally
+# and commit the lockfile before the first push (banked estate lesson:
+# lockfile must match package.json or ci fails).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Test
+        run: npx vitest run
+
+      - name: Check generated binding types
+        run: npx wrangler types --include-runtime false --check
+
+      - name: Wrangler dry run
+        run: npx wrangler deploy --dry-run
