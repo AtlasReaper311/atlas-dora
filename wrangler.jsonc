@@ -4,7 +4,6 @@
   "main": "src/index.js",
   "compatibility_date": "2026-07-13",
   "compatibility_flags": ["nodejs_compat"],
-
   "observability": {
     "enabled": true,
     "logs": {
@@ -16,7 +15,6 @@
       "head_sampling_rate": 0.01
     }
   },
-
   // Metrics cache (metrics:v1, 5 min TTL) and durable previous snapshot
   // (metrics:last, no TTL). Create it, then paste the id printed by:
   //   npx wrangler kv namespace create DORA_CACHE
@@ -26,13 +24,30 @@
       "id": "a0c92692d5c142b38b3196c13f346d21"
     }
   ],
-
   // Route under the estate API hostname. zone_id, never zone_name: the
   // scoped deploy token cannot resolve names.
   "routes": [
     {
       "pattern": "api.atlas-systems.uk/dora/*",
       "zone_id": "8ba6350a78c988447c111048b125f917"
+    }
+  ],
+  // Worker-to-Worker calls for DORA metrics. Same-zone public-hostname
+  // fetches from inside a Worker produce intermittent 522s at the
+  // Cloudflare edge; service bindings call the target Worker's fetch
+  // handler in-process instead.
+  "services": [
+    {
+      "binding": "ATLAS_NOTIFY",
+      "service": "atlas-notify"
+    },
+    {
+      "binding": "ATLAS_BLACKBOX",
+      "service": "atlas-blackbox"
+    },
+    {
+      "binding": "DEPLOY_WATCH",
+      "service": "deploy-watch"
     }
   ]
 }
