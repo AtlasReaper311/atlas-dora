@@ -19,7 +19,8 @@ function sanitizeReleases(body) {
   return {
     ...body,
     releases: body.releases.map((release) => {
-      const { repository: _repository, ...publicRelease } = release;
+      const publicRelease = { ...release };
+      delete publicRelease.repository;
       return publicRelease;
     }),
   };
