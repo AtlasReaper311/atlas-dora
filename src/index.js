@@ -1,17 +1,19 @@
 import { computeMetrics, trendAgainst } from "./metrics.js";
-import { fetchEstate, UPSTREAM_DESCRIPTORS } from "./upstream.js";
- 
+import { correlateReleases } from "./release-reliability.js";
+import { fetchEstate, fetchReleaseSources, UPSTREAM_DESCRIPTORS } from "./upstream.js";
+
 const CACHE_KEY = "metrics:v1";
 const LAST_KEY = "metrics:last";
+const RELEASES_CACHE_KEY = "releases:v1";
 const CACHE_TTL_SECONDS = 300;
- 
+
 const META = {
   name: "atlas-dora",
   role: "Computes DORA metrics (deployment frequency, change failure rate, MTTR) from the estate's event and incident recorders.",
-  endpoints: ["/dora/metrics", "/dora/health", "/dora/_meta"],
+  endpoints: ["/dora/metrics", "/dora/releases", "/dora/health", "/dora/_meta"],
   upstreams: UPSTREAM_DESCRIPTORS,
   source: "https://github.com/AtlasReaper311/atlas-dora",
-  notes: "Read-only downstream consumer, called over Cloudflare Service Bindings rather than public URLs to avoid same-zone edge round-trips. CFR and MTTR are correlation heuristics; each response reports its own basis."
+  notes: "Read-only downstream consumer, called over Cloudflare Service Bindings rather than public URLs to avoid same-zone edge round-trips. CFR, MTTR, and release correlation are correlation heuristics; each response reports its own basis."
 };
  
 const CORS_HEADERS = {
@@ -102,6 +104,53 @@ async function handleMetrics(env) {
   });
 }
  
+async function handleReleases(env) {
+  const cached = await env.DORA_CACHE.get(RELEASES_CACHE_KEY);
+  if (cached !== null) {
+    return new Response(cached, {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        ...CORS_HEADERS,
+        "x-dora-cache": "HIT"
+      }
+    });
+  }
+
+  const sources = await fetchReleaseSources(env);
+  if (sources.unusable) {
+    // Missing inputs cannot become an empty-but-healthy correlation:
+    // the honest answer names what is absent and refuses to correlate.
+    return json(
+      { ok: false, error: "correlation inputs unavailable", degraded: sources.degraded },
+      { status: 503, extraHeaders: { "x-dora-cache": "MISS" } }
+    );
+  }
+
+  const body = {
+    ok: true,
+    ...correlateReleases({
+      events: sources.events,
+      slo: sources.slo,
+      objectives: sources.objectives,
+      journeyState: sources.journeyState,
+      nowMs: Date.now()
+    }),
+    degraded: sources.degraded
+  };
+
+  const serialized = JSON.stringify(body, null, 2);
+  await env.DORA_CACHE.put(RELEASES_CACHE_KEY, serialized, { expirationTtl: CACHE_TTL_SECONDS });
+  return new Response(serialized, {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      ...CORS_HEADERS,
+      "x-dora-cache": "MISS"
+    }
+  });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -110,9 +159,9 @@ export default {
     if (request.method !== "GET") {
       return json({ ok: false, error: "method not allowed" }, { status: 405 });
     }
- 
+
     const path = normalizePath(new URL(request.url).pathname);
- 
+
     if (path === "/metrics") {
       try {
         return await handleMetrics(env);
@@ -121,6 +170,22 @@ export default {
         console.error(
           JSON.stringify({
             message: "metrics request failed",
+            error: message,
+            path: new URL(request.url).pathname
+          })
+        );
+        return json({ ok: false, error: "internal server error" }, { status: 500 });
+      }
+    }
+
+    if (path === "/releases") {
+      try {
+        return await handleReleases(env);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(
+          JSON.stringify({
+            message: "releases request failed",
             error: message,
             path: new URL(request.url).pathname
           })

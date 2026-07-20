@@ -48,6 +48,10 @@
     {
       "binding": "DEPLOY_WATCH",
       "service": "deploy-watch"
+    },
+    {
+      "binding": "ATLAS_API_PUBLIC",
+      "service": "atlas-api-public"
     }
   ]
 }

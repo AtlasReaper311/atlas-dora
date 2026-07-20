@@ -113,3 +113,72 @@ export const UPSTREAM_DESCRIPTORS = Object.values(UPSTREAMS).map((u) => ({
   name: u.name,
   via: `service binding ${u.binding}`
 }));
+
+// Release correlation reads three atlas-api-public views over one extra
+// binding: the notify ring buffer supplies the deploys, these supply the
+// counters, the measured-service list, and the scheduled journey verdict.
+// atlas-api-public never calls atlas-dora, so no cycle exists.
+const API_PUBLIC = {
+  binding: "ATLAS_API_PUBLIC",
+  name: "atlas-api-public",
+  slo: "https://atlas-api-public/v1/slo",
+  objectives: "https://atlas-api-public/v1/reliability/objectives",
+  stats: "https://atlas-api-public/v1/stats"
+};
+
+export async function fetchReleaseSources(env) {
+  const [notify, slo, objectives, stats] = await Promise.allSettled([
+    fetchViaBinding(env[UPSTREAMS.notify.binding], UPSTREAMS.notify.url, UPSTREAMS.notify.name),
+    fetchViaBinding(env[API_PUBLIC.binding], API_PUBLIC.slo, `${API_PUBLIC.name} /v1/slo`),
+    fetchViaBinding(env[API_PUBLIC.binding], API_PUBLIC.objectives, `${API_PUBLIC.name} /v1/reliability/objectives`),
+    fetchViaBinding(env[API_PUBLIC.binding], API_PUBLIC.stats, `${API_PUBLIC.name} /v1/stats`)
+  ]);
+
+  const degraded = [];
+  let events = [];
+  let slodoc = null;
+  let objectiveList = null;
+  let journeyState = null;
+
+  if (notify.status === "fulfilled") {
+    events = normalizeNotify(notify.value);
+  } else {
+    degraded.push({ upstream: UPSTREAMS.notify.name, reason: notify.reason.message });
+  }
+  if (slo.status === "fulfilled" && slo.value && typeof slo.value === "object") {
+    slodoc = slo.value;
+  } else if (slo.status === "rejected") {
+    degraded.push({ upstream: `${API_PUBLIC.name} /v1/slo`, reason: slo.reason.message });
+  }
+  if (
+    objectives.status === "fulfilled" &&
+    Array.isArray(objectives.value?.objectives)
+  ) {
+    objectiveList = objectives.value.objectives;
+  } else {
+    const reason =
+      objectives.status === "rejected"
+        ? objectives.reason.message
+        : "objectives payload missing";
+    degraded.push({ upstream: `${API_PUBLIC.name} /v1/reliability/objectives`, reason });
+  }
+  if (stats.status === "fulfilled") {
+    const journey = stats.value?.components?.atlas_journey_watch;
+    if (journey && typeof journey.status === "string") {
+      journeyState = journey.status;
+    }
+  } else {
+    degraded.push({ upstream: `${API_PUBLIC.name} /v1/stats`, reason: stats.reason.message });
+  }
+
+  return {
+    events,
+    slo: slodoc,
+    objectives: objectiveList,
+    journeyState,
+    degraded,
+    // Correlation is impossible without deploys, counters, and the
+    // measured-service list; the journey verdict alone may degrade.
+    unusable: events.length === 0 || slodoc === null || objectiveList === null
+  };
+}

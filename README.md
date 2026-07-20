@@ -16,6 +16,7 @@ and the API can both be public.
 | Route | |
 | --- | --- |
 | `GET /dora/metrics` | the numbers, cached ~5 min, `x-dora-cache: HIT` or `MISS` |
+| `GET /dora/releases` | release and reliability correlation: per deploy, up to three full UTC days of probe evidence each side, the release day excluded as mixed, deltas, sufficiency, and a suspected-regression flag that is correlation, never causation |
 | `GET /dora/health` | is atlas-dora itself alive (no upstream calls, deliberately) |
 | `GET /dora/_meta` | estate self-description contract |
 
