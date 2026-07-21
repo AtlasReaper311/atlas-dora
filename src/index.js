@@ -9,6 +9,9 @@ const CACHE_TTL_SECONDS = 300;
 
 const META = {
   name: "atlas-dora",
+  description: "Computes aggregate DORA delivery and recovery metrics from Atlas Systems operational evidence.",
+  version: "0.1.0",
+  status: "live",
   role: "Computes DORA metrics (deployment frequency, change failure rate, MTTR) from the estate's event and incident recorders.",
   endpoints: ["/dora/metrics", "/dora/releases", "/dora/health", "/dora/_meta"],
   upstreams: UPSTREAM_DESCRIPTORS,
