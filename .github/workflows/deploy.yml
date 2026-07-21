@@ -14,9 +14,10 @@ concurrency:
 
 jobs:
   deploy:
-    uses: AtlasReaper311/atlas-infra/.github/workflows/deploy-worker.yml@d38ff1ce24b3c9da1e18fabaf52196f1d7cc9b79 # atlas-infra public-private boundary
+    uses: AtlasReaper311/atlas-infra/.github/workflows/deploy-worker.yml@f971172dc258c93dffa53b8b7a3532c5be55883d # atlas-infra W3 Worker contract enforcement
     with:
       worker_name: atlas-dora
       run_lint: true
       run_tests: true
+      require_meta: true
     secrets: inherit
