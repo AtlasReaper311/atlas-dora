@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   gardener:
-    uses: AtlasReaper311/atlas-gardener/.github/workflows/gardener-automerge-gate.yml@42ef4a9080768ae2563c91215893f2905eb5f903
+    uses: AtlasReaper311/atlas-gardener/.github/workflows/gardener-automerge-gate.yml@cb63f8198bc0184711f8112f213d855efa41162e
     permissions:
       contents: write
       pull-requests: write
@@ -23,4 +23,4 @@ jobs:
       enabled: ${{ vars.ATLAS_GARDENER_AUTOMERGE_ENABLED == 'true' }}
       expected_app_login: atlas-gardener-w37-atlasreaper[bot]
       required_checks_json: '["check"]'
-      authority_ref: 67fc27b66cb1a47951d1d649650130f7d3586ca2
+      authority_ref: 6689de2c7ccd9264348c75bed99745021f88f191
