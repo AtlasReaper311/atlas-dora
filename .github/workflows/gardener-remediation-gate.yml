@@ -27,29 +27,89 @@ jobs:
 
   gardener-native-automerge-barrier:
     name: Gardener native auto-merge barrier
-    needs: gardener
-    if: always()
     runs-on: ubuntu-latest
-    permissions: {}
+    timeout-minutes: 22
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      statuses: read
     steps:
-      - name: Validate target gate outcome
+      - name: Hold the native auto-merge barrier
         env:
+          GH_TOKEN: ${{ github.token }}
           AUTOMERGE_ENABLED: ${{ vars.ATLAS_GARDENER_AUTOMERGE_ENABLED == 'true' }}
-          GARDENER_RESULT: ${{ needs.gardener.result }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GATE_CHECK_NAME: gardener / Validate Gardener automatic merge
         run: |
           set -euo pipefail
-          if [ "$AUTOMERGE_ENABLED" = "true" ]; then
-            test "$GARDENER_RESULT" = "success"
-            echo "Gardener gate succeeded; releasing the native auto-merge barrier."
+
+          if [ "$AUTOMERGE_ENABLED" != "true" ]; then
+            echo "Gardener auto-merge is disabled; the barrier is satisfied without a target write."
             exit 0
           fi
 
-          case "$GARDENER_RESULT" in
-            skipped|success)
-              echo "Gardener auto-merge is disabled; the barrier is satisfied without a target write."
-              ;;
-            *)
-              echo "Unexpected Gardener result while auto-merge is disabled: $GARDENER_RESULT" >&2
-              exit 1
-              ;;
-          esac
+          for attempt in $(seq 1 80)
+          do
+            gh pr view "$PR_URL" \
+              --json state,statusCheckRollup,autoMergeRequest \
+              > /tmp/gardener-native-barrier.json
+
+            RESULT=$(python3 - <<'PY'
+          import json
+          import os
+
+          document = json.load(open("/tmp/gardener-native-barrier.json", encoding="utf-8"))
+          if document.get("state") != "OPEN":
+              print("closed")
+              raise SystemExit
+
+          states = {}
+          for item in document.get("statusCheckRollup") or []:
+              if not isinstance(item, dict):
+                  continue
+              name = item.get("name") or item.get("context")
+              state = item.get("conclusion") or item.get("state") or item.get("status")
+              if isinstance(name, str) and isinstance(state, str):
+                  states[name] = state.upper()
+
+          gate_state = states.get(os.environ["GATE_CHECK_NAME"], "PENDING")
+          failed_values = {
+              "ACTION_REQUIRED", "CANCELLED", "ERROR", "FAILURE",
+              "SKIPPED", "STALE", "TIMED_OUT",
+          }
+          if gate_state in failed_values:
+              print("failed")
+          elif gate_state == "SUCCESS" and document.get("autoMergeRequest") is not None:
+              print("armed")
+          else:
+              print("pending")
+          PY
+          )
+
+            case "$RESULT" in
+              armed)
+                echo "Gardener gate succeeded and native auto-merge is armed; releasing the barrier."
+                exit 0
+                ;;
+              failed)
+                echo "Gardener gate failed or was skipped while automatic merge was enabled." >&2
+                exit 1
+                ;;
+              closed)
+                echo "Pull request closed before the barrier could verify native auto-merge." >&2
+                exit 1
+                ;;
+              pending)
+                if [ "$attempt" -eq 80 ]; then
+                  echo "Gardener gate did not arm native auto-merge within the bounded wait." >&2
+                  exit 1
+                fi
+                sleep 15
+                ;;
+              *)
+                echo "Unexpected native auto-merge barrier state: $RESULT" >&2
+                exit 1
+                ;;
+            esac
+          done
