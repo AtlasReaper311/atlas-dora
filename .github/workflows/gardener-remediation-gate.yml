@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   gardener:
-    uses: AtlasReaper311/atlas-gardener/.github/workflows/gardener-automerge-gate.yml@436b2da637b64bb1412be32be37af9959d91d4fb
+    uses: AtlasReaper311/atlas-gardener/.github/workflows/gardener-automerge-gate.yml@8cc8455d40bcf4777be082dbd69434772e2bad96
     permissions:
       contents: write
       pull-requests: write
