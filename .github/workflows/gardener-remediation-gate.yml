@@ -24,3 +24,32 @@ jobs:
       expected_app_login: atlas-gardener-w37-atlasreaper[bot]
       required_checks_json: '["check"]'
       authority_ref: 6689de2c7ccd9264348c75bed99745021f88f191
+
+  gardener-native-automerge-barrier:
+    name: Gardener native auto-merge barrier
+    needs: gardener
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Validate target gate outcome
+        env:
+          AUTOMERGE_ENABLED: ${{ vars.ATLAS_GARDENER_AUTOMERGE_ENABLED == 'true' }}
+          GARDENER_RESULT: ${{ needs.gardener.result }}
+        run: |
+          set -euo pipefail
+          if [ "$AUTOMERGE_ENABLED" = "true" ]; then
+            test "$GARDENER_RESULT" = "success"
+            echo "Gardener gate succeeded; releasing the native auto-merge barrier."
+            exit 0
+          fi
+
+          case "$GARDENER_RESULT" in
+            skipped|success)
+              echo "Gardener auto-merge is disabled; the barrier is satisfied without a target write."
+              ;;
+            *)
+              echo "Unexpected Gardener result while auto-merge is disabled: $GARDENER_RESULT" >&2
+              exit 1
+              ;;
+          esac
