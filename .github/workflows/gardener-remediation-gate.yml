@@ -1,0 +1,26 @@
+name: Gardener remediation gate
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gardener-remediation-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gardener:
+    uses: AtlasReaper311/atlas-gardener/.github/workflows/gardener-automerge-gate.yml@42ef4a9080768ae2563c91215893f2905eb5f903
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      statuses: read
+    with:
+      enabled: ${{ vars.ATLAS_GARDENER_AUTOMERGE_ENABLED == 'true' }}
+      expected_app_login: atlas-gardener-w37-atlasreaper[bot]
+      required_checks_json: '["check"]'
+      authority_ref: 67fc27b66cb1a47951d1d649650130f7d3586ca2
