@@ -11,8 +11,8 @@
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
-    "eslint": "^10.9.1",
+    "eslint": "^10.11.0",
     "vitest": "^4.1.11",
-    "wrangler": "^4.131.0"
+    "wrangler": "^4.143.0"
   }
 }
